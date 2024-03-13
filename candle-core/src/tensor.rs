@@ -1175,10 +1175,10 @@ impl Tensor {
             .bt())?
         }
 
-        let op = BackpropOp::new2(self, rhs, Op::Matmul);
         if batching > 1 {
             bail!("Batch size > 1 not supported for Fourth Moment");
         }
+        // TODO: fix backpropagation if trying to merge
         if m == 0 || n == 0 || k == 0 {
             let dtype = self.dtype();
             let device = self.device();
@@ -1188,6 +1188,7 @@ impl Tensor {
             return Ok(Self::zeros(&[m, n], self.dtype(), &self.device)?);
         }
 
+        let op = BackpropOp::new2(self, rhs, Op::Matmul);
         let storage = self.storage().matmul(
             &rhs.storage(),
             (batching, m, n, k),
