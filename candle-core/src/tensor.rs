@@ -1175,13 +1175,26 @@ impl Tensor {
             .bt())?
         }
 
+        if batching > 1 {
+            bail!("Batch size > 1 not supported for Fourth Moment");
+        }
+        // TODO: fix backpropagation if trying to merge
+        if m == 0 || n == 0 || k == 0 {
+            let dtype = self.dtype();
+            let device = self.device();
+            self.storage().same_device(&rhs.storage(), "matmul")?;
+            self.storage().same_dtype(&rhs.storage(), "matmul")?;
+            // TODO: support batching here
+            return Ok(Self::zeros(&[m, n], self.dtype(), &self.device)?);
+        }
+
+        let op = BackpropOp::new2(self, rhs, Op::Matmul);
         let storage = self.storage().matmul(
             &rhs.storage(),
             (batching, m, n, k),
             self.layout(),
             rhs.layout(),
         )?;
-        let op = BackpropOp::new2(self, rhs, Op::Matmul);
         Ok(from_storage(storage, c_shape, op, false))
     }
 
@@ -2532,6 +2545,9 @@ impl Tensor {
 
     /// Returns a matrix with a diagonal of ones of size n by n.
     pub fn eye(n: usize, dtype: DType, device: &Device) -> Result<Self> {
+        if n == 0 {
+            return Ok(Tensor::zeros((0, 0), dtype, device)?)
+        }
         let t = Tensor::arange(0u32, n as u32, device)?;
         let t1 = t.reshape((1, n))?.broadcast_as((n, n))?;
         let t2 = t.reshape((n, 1))?.broadcast_as((n, n))?;
