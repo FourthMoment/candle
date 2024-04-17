@@ -187,6 +187,7 @@ impl CudaDevice {
     }
 
     pub fn get_or_load_func(&self, module_name: &str, ptx: &'static str) -> Result<CudaFunction> {
+        // todo!();
         if !self.has_func(module_name, module_name) {
             // Leaking the string here is a bit sad but we need a &'static str and this is only
             // done once per kernel name.
@@ -362,15 +363,15 @@ impl BackendDevice for CudaDevice {
     fn storage_from_cpu_storage(&self, storage: &CpuStorage) -> Result<CudaStorage> {
         let slice = match storage {
             CpuStorage::U8(storage) => {
-                let data = self.htod_sync_copy(storage).w()?;
+                let data = self.htod_copy(storage.clone()).w()?;
                 CudaStorageSlice::U8(data)
             }
             CpuStorage::U32(storage) => {
-                let data = self.htod_sync_copy(storage).w()?;
+                let data = self.htod_copy(storage.clone()).w()?;
                 CudaStorageSlice::U32(data)
             }
             CpuStorage::I64(storage) => {
-                let data = self.htod_sync_copy(storage).w()?;
+                let data = self.htod_copy(storage.clone()).w()?;
                 CudaStorageSlice::I64(data)
             }
             CpuStorage::BF16(storage) => {
@@ -382,11 +383,11 @@ impl BackendDevice for CudaDevice {
                 CudaStorageSlice::F16(data)
             }
             CpuStorage::F32(storage) => {
-                let data = self.htod_sync_copy(storage).w()?;
+                let data = self.htod_copy(storage.clone()).w()?;
                 CudaStorageSlice::F32(data)
             }
             CpuStorage::F64(storage) => {
-                let data = self.htod_sync_copy(storage).w()?;
+                let data = self.htod_copy(storage.clone()).w()?;
                 CudaStorageSlice::F64(data)
             }
         };
@@ -566,10 +567,10 @@ impl Map1 for Affine {
         let cfg = LaunchConfig::for_num_elems(el as u32);
         let ds = dev.htod_copy([dims, layout.stride()].concat()).w()?;
         let src = &src.slice(layout.start_offset()..);
-        let func = dev.get_or_load_func(&kernel_name::<T>("affine"), kernels::AFFINE)?;
+        // let func = dev.get_or_load_func(&kernel_name::<T>("affine"), kernels::AFFINE)?;
         // SAFETY: Set later by running the kernel.
         let out = unsafe { dev.alloc::<T>(el) }.w()?;
-        let params = (
+        /*let params = (
             el,
             dims.len(),
             &ds,
@@ -579,7 +580,7 @@ impl Map1 for Affine {
             T::from_f64(self.1),
         );
         // SAFETY: ffi.
-        unsafe { func.launch(cfg, params) }.w()?;
+        unsafe { func.launch(cfg, params) }.w()?;*/
         Ok(out)
     }
 }
@@ -854,12 +855,12 @@ impl<U: UnaryOpT> Map1 for U {
         let cfg = LaunchConfig::for_num_elems(el_count as u32);
         let ds = dev.htod_copy([dims, layout.stride()].concat()).w()?;
         let src = &src.slice(layout.start_offset()..);
-        let func = dev.get_or_load_func(&kernel_name::<T>(U::KERNEL), kernels::UNARY)?;
+        // let func = dev.get_or_load_func(&kernel_name::<T>(U::KERNEL), kernels::UNARY)?;
         // SAFETY: Set later by running the kernel.
         let out = unsafe { dev.alloc::<T>(el_count) }.w()?;
-        let params = (el_count, dims.len(), &ds, src, &out);
+        /*let params = (el_count, dims.len(), &ds, src, &out);
         // SAFETY: ffi.
-        unsafe { func.launch(cfg, params) }.w()?;
+        unsafe { func.launch(cfg, params) }.w()?;*/
         Ok(out)
     }
 }
@@ -903,7 +904,7 @@ impl<'a> Map1 for IndexSelect<'a> {
         let ids_dim_size = ids_shape.elem_count();
         let dst_el = ids_shape.elem_count() * left_size * right_size;
         let cfg = LaunchConfig::for_num_elems(dst_el as u32);
-        let func = dev.get_or_load_func(&kernel_name::<T>(name), kernels::INDEXING)?;
+        // let func = dev.get_or_load_func(&kernel_name::<T>(name), kernels::INDEXING)?;
         // SAFETY: Set later by running the kernel.
         let out = unsafe { dev.alloc::<T>(dst_el) }.w()?;
         let params = (
@@ -919,7 +920,7 @@ impl<'a> Map1 for IndexSelect<'a> {
             right_size,
         );
         // SAFETY: ffi.
-        unsafe { func.launch(cfg, params) }.w()?;
+        // unsafe { func.launch(cfg, params) }.w()?;
         Ok(out)
     }
 }
@@ -1379,12 +1380,12 @@ impl<'a> Map2 for WhereCond<'a> {
             .w()?;
         let t = &t.slice(layout_t.start_offset()..);
         let f = &f.slice(layout_f.start_offset()..);
-        let func = dev.get_or_load_func(&kernel_name::<T>(name), kernels::TERNARY)?;
+        // let func = dev.get_or_load_func(&kernel_name::<T>(name), kernels::TERNARY)?;
         // SAFETY: Set later by running the kernel.
         let out = unsafe { dev.alloc::<T>(el) }.w()?;
-        let params = (el, dims.len(), &ds, ids, t, f, &out);
+        /*let params = (el, dims.len(), &ds, ids, t, f, &out);
         // SAFETY: ffi
-        unsafe { func.launch(cfg, params) }.w()?;
+        unsafe { func.launch(cfg, params) }.w()?;*/
         Ok(out)
     }
 }
@@ -1407,12 +1408,12 @@ impl<U: crate::op::BinaryOpT> Map2 for U {
             .w()?;
         let lhs = &lhs.slice(lhs_l.start_offset()..);
         let rhs = &rhs.slice(rhs_l.start_offset()..);
-        let func = dev.get_or_load_func(&kernel_name::<T>(U::KERNEL), kernels::BINARY)?;
+        // let func = dev.get_or_load_func(&kernel_name::<T>(U::KERNEL), kernels::BINARY)?;
         // SAFETY: Set later by running the kernel.
         let out = unsafe { dev.alloc::<T>(elem_count) }.w()?;
-        let params = (elem_count, dims.len(), &dims_and_strides, lhs, rhs, &out);
+        /*let params = (elem_count, dims.len(), &dims_and_strides, lhs, rhs, &out);
         // SAFETY: ffi
-        unsafe { func.launch(cfg, params) }.w()?;
+        unsafe { func.launch(cfg, params) }.w()?;*/
         Ok(out)
     }
 }
@@ -1444,12 +1445,12 @@ impl Map2Any for Cmp {
             CmpOp::Gt => "gt",
             CmpOp::Ge => "ge",
         };
-        let func = dev.get_or_load_func(&kernel_name::<T>(name), kernels::BINARY)?;
+        // let func = dev.get_or_load_func(&kernel_name::<T>(name), kernels::BINARY)?;
         // SAFETY: Set later by running the kernel.
         let out = unsafe { dev.alloc::<u8>(elem_count) }.w()?;
-        let params = (elem_count, dims.len(), &dims_and_strides, lhs, rhs, &out);
+        /*let params = (elem_count, dims.len(), &dims_and_strides, lhs, rhs, &out);
         // SAFETY: ffi
-        unsafe { func.launch(cfg, params) }.w()?;
+        unsafe { func.launch(cfg, params) }.w()?;*/
         Ok(S::U8(out))
     }
 }
@@ -1657,48 +1658,48 @@ impl BackendStorage for CudaStorage {
         let inp = &inp;
 
         let kernel_name = format!("cast_{}_{}", self.dtype().as_str(), dtype.as_str());
-        let func = dev.get_or_load_func(&kernel_name, kernels::CAST)?;
+        // let func = dev.get_or_load_func(&kernel_name, kernels::CAST)?;
         let slice = match dtype {
             DType::U8 => {
                 let out = unsafe { dev.alloc::<u8>(el) }.w()?;
                 let params = (el, dims.len(), &ds, *inp, &out);
-                unsafe { func.launch(cfg, params) }.w()?;
+                // unsafe { func.launch(cfg, params) }.w()?;
                 CudaStorageSlice::U8(out)
             }
             DType::U32 => {
                 let out = unsafe { dev.alloc::<u32>(el) }.w()?;
                 let params = (el, dims.len(), &ds, *inp, &out);
-                unsafe { func.launch(cfg, params) }.w()?;
+                // unsafe { func.launch(cfg, params) }.w()?;
                 CudaStorageSlice::U32(out)
             }
             DType::I64 => {
                 let out = unsafe { dev.alloc::<i64>(el) }.w()?;
                 let params = (el, dims.len(), &ds, *inp, &out);
-                unsafe { func.launch(cfg, params) }.w()?;
+                // unsafe { func.launch(cfg, params) }.w()?;
                 CudaStorageSlice::I64(out)
             }
             DType::BF16 => {
                 let out = unsafe { dev.alloc::<bf16>(el) }.w()?;
                 let params = (el, dims.len(), &ds, *inp, &out);
-                unsafe { func.launch(cfg, params) }.w()?;
+                // unsafe { func.launch(cfg, params) }.w()?;
                 CudaStorageSlice::BF16(out)
             }
             DType::F16 => {
                 let out = unsafe { dev.alloc::<f16>(el) }.w()?;
                 let params = (el, dims.len(), &ds, *inp, &out);
-                unsafe { func.launch(cfg, params) }.w()?;
+                // unsafe { func.launch(cfg, params) }.w()?;
                 CudaStorageSlice::F16(out)
             }
             DType::F32 => {
                 let out = unsafe { dev.alloc::<f32>(el) }.w()?;
                 let params = (el, dims.len(), &ds, *inp, &out);
-                unsafe { func.launch(cfg, params) }.w()?;
+                // unsafe { func.launch(cfg, params) }.w()?;
                 CudaStorageSlice::F32(out)
             }
             DType::F64 => {
                 let out = unsafe { dev.alloc::<f64>(el) }.w()?;
                 let params = (el, dims.len(), &ds, *inp, &out);
-                unsafe { func.launch(cfg, params) }.w()?;
+                // unsafe { func.launch(cfg, params) }.w()?;
                 CudaStorageSlice::F64(out)
             }
         };
@@ -2154,7 +2155,9 @@ impl BackendStorage for CudaStorage {
         }
         let cfg = LaunchConfig::for_num_elems(el_count as u32);
         let dev = &self.device;
+        println!("hrm");
         let ds = dev.htod_copy([dims, src_l.stride()].concat()).w()?;
+        println!("hrm2");
         match (&self.slice, &mut dst.slice) {
             (CudaStorageSlice::BF16(src), CudaStorageSlice::BF16(dst)) => {
                 let (src, mut dst) = slice_src_and_dst(src, src_l, dst, dst_offset);
@@ -2229,15 +2232,18 @@ impl BackendStorage for CudaStorage {
                 }
             }
             (CudaStorageSlice::F64(src), CudaStorageSlice::F64(dst)) => {
+                println!("hrm3");
                 let (src, mut dst) = slice_src_and_dst(src, src_l, dst, dst_offset);
                 if src_l.is_contiguous() {
+                    println!("a");
                     dev.dtod_copy(&src, &mut dst).w()?
                 } else {
-                    let func = dev.get_or_load_func("ucopy_f64", kernels::UNARY)?;
-                    // SAFETY: Set later by running the kernel.
+                    println!("b");
+                    // let func = dev.get_or_load_func("ucopy_f64", kernels::UNARY)?;
+                    /*// SAFETY: Set later by running the kernel.
                     let params = (el_count, dims.len(), &ds, &src, &mut dst);
                     // SAFETY: ffi.
-                    unsafe { func.launch(cfg, params) }.w()?;
+                    // unsafe { func.launch(cfg, params) }.w()?;*/
                 }
             }
             _ => Err(CudaError::InternalError(
