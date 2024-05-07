@@ -567,10 +567,10 @@ impl Map1 for Affine {
         let cfg = LaunchConfig::for_num_elems(el as u32);
         let ds = dev.htod_copy([dims, layout.stride()].concat()).w()?;
         let src = &src.slice(layout.start_offset()..);
-        // let func = dev.get_or_load_func(&kernel_name::<T>("affine"), kernels::AFFINE)?;
+        let func = dev.get_or_load_func(&kernel_name::<T>("affine"), kernels::AFFINE)?;
         // SAFETY: Set later by running the kernel.
         let out = unsafe { dev.alloc::<T>(el) }.w()?;
-        /*let params = (
+        let params = (
             el,
             dims.len(),
             &ds,
@@ -580,7 +580,7 @@ impl Map1 for Affine {
             T::from_f64(self.1),
         );
         // SAFETY: ffi.
-        unsafe { func.launch(cfg, params) }.w()?;*/
+        unsafe { func.launch(cfg, params) }.w()?;
         Ok(out)
     }
 }
