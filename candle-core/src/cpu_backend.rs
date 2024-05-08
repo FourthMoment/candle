@@ -458,11 +458,13 @@ pub fn binary_map<T: Copy, U: Copy, F: FnMut(T, T) -> U>(
     mut f: F,
 ) -> Vec<U> {
     match (lhs_l.contiguous_offsets(), rhs_l.contiguous_offsets()) {
-        (Some((o_l1, o_l2)), Some((o_r1, o_r2))) => lhs[o_l1..o_l2]
+        (Some((o_l1, o_l2)), Some((o_r1, o_r2))) => {
+            lhs[o_l1..o_l2]
             .iter()
             .zip(rhs[o_r1..o_r2].iter())
             .map(|(&l, &r)| f(l, r))
-            .collect(),
+            .collect()
+        },
         (Some((o_l1, o_l2)), None) => {
             // TODO: Maybe we want to avoid going through the layout twice.
             match rhs_l.offsets_b() {
@@ -521,12 +523,22 @@ pub fn binary_map<T: Copy, U: Copy, F: FnMut(T, T) -> U>(
                     .collect(),
             }
         }
-        _ => lhs_l
-            .strided_index()
-            .zip(rhs_l.strided_index())
-            .map(|(lhs_i, rhs_i)| f(lhs[lhs_i], rhs[rhs_i]))
-            .collect(),
+        _ => canary(lhs_l, rhs_l, lhs, rhs, f)
     }
+}
+
+fn canary<T: Copy, U: Copy, F: FnMut(T, T) -> U>(
+    lhs_l: &Layout,
+    rhs_l: &Layout,
+    lhs: &[T],
+    rhs: &[T],
+    mut f: F,
+) -> Vec<U> {
+    lhs_l
+    .strided_index()
+    .zip(rhs_l.strided_index())
+    .map(|(lhs_i, rhs_i)| f(lhs[lhs_i], rhs[rhs_i]))
+    .collect()
 }
 
 // Similar to binary_map but with vectorized variants.
