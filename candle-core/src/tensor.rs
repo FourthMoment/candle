@@ -2548,10 +2548,21 @@ impl Tensor {
         if n == 0 {
             return Ok(Tensor::zeros((0, 0), dtype, device)?)
         }
-        let t = Tensor::arange(0u32, n as u32, device)?;
-        let t1 = t.reshape((1, n))?.broadcast_as((n, n))?;
-        let t2 = t.reshape((n, 1))?.broadcast_as((n, n))?;
-        t1.eq(&t2)?.to_dtype(dtype)
+        match device {
+            Device::Cpu => {
+                let mut data = vec![0u8; n * n];
+                for i in 0..n {
+                    data[i * n + i] = 1;
+                }
+                Tensor::from_vec(data, (n, n), device)?.to_dtype(dtype)
+            },
+            _ => {
+                let t = Tensor::arange(0u32, n as u32, device)?;
+                let t1 = t.reshape((1, n))?.broadcast_as((n, n))?;
+                let t2 = t.reshape((n, 1))?.broadcast_as((n, n))?;
+                t1.eq(&t2)?.to_dtype(dtype)
+            }
+        }
     }
 
     /// Returns the cumulative sum of elements of the input tensor summed over the specified
