@@ -42,12 +42,6 @@ impl<'a> Iterator for StridedIndex<'a> {
         };
         let mut updated = false;
         let mut next_storage_index = storage_index;
-        let last_idx = self.multi_index.len() - 1;
-        if self.multi_index[last_idx] + 1 < self.dims[last_idx] {
-            self.next_storage_index = Some(storage_index + self.stride[last_idx]);
-            self.multi_index[last_idx] += 1;
-            return self.next_storage_index;
-        }
         for ((multi_i, max_i), stride_i) in self
             .multi_index
             .iter_mut()
